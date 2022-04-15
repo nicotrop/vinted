@@ -16,8 +16,8 @@ const Userlogins = require("../models/Userlogins");
 const Offer = require("../models/Offer");
 
 //Import middlewares
-const isAuthenticated = require("../isAuthenticated");
-const checkId = require("../checkId");
+const isAuthenticated = require("../middlewares/isAuthenticated");
+const checkId = require("../middlewares/checkId");
 // const uploadImage = require("../uploadImage");
 
 //Create - Creation de route
@@ -40,11 +40,11 @@ router.post("/offer/publish", isAuthenticated, async (req, res) => {
       owner: req.user,
     });
 
-    const path = "/vinted/offers/";
+    console.log(req.files);
 
     let imgToUpload = req.files.picture.path;
     const imgUploaded = await cloudinary.uploader.upload(imgToUpload, {
-      folder: path,
+      folder: "/vinted/offers/",
       public_id: newOffer._id,
     });
 
