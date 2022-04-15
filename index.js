@@ -1,7 +1,8 @@
 //Import des modules
+require("dotenv").config();
 
 const express = require("express");
-require("dotenv").config();
+const cors = require("cors");
 
 const formidable = require("express-formidable");
 const mongoose = require("mongoose");
@@ -10,6 +11,7 @@ const mongoose = require("mongoose");
 
 const app = express();
 app.use(formidable());
+app.use(cors());
 
 // Connection a la bdd mongodb authentification
 

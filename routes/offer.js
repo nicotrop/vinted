@@ -6,9 +6,9 @@ const morgan = require("morgan");
 
 //Configurer cloudinary
 cloudinary.config({
-  cloud_name: "dygjptmlc",
-  api_key: "728436132528678",
-  api_secret: "_IWFjUCr_FPbETBVhjPDUqKkg9A",
+  cloud_name: process.env.CLOUD_name,
+  api_key: process.env.API_key,
+  api_secret: process.env.API_secret,
 });
 
 //Import models
