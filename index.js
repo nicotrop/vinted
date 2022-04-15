@@ -1,6 +1,8 @@
 //Import des modules
 
 const express = require("express");
+require("dotenv").config();
+
 const formidable = require("express-formidable");
 const mongoose = require("mongoose");
 
@@ -11,7 +13,7 @@ app.use(formidable());
 
 // Connection a la bdd mongodb authentification
 
-mongoose.connect("mongodb://127.0.0.1:27017/authentification");
+mongoose.connect(process.env.MONGODB_URI);
 
 // Import des routes
 
@@ -31,6 +33,6 @@ app.all("*", (req, res) => {
 
 // Lancer le serveur
 
-app.listen(4000, () => {
+app.listen(process.env.PORT, () => {
   console.log("Server has started!");
 });
