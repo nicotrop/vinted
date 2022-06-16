@@ -23,6 +23,7 @@ const checkId = require("../middlewares/checkId");
 //Create - Creation de route
 router.post("/offer/publish", isAuthenticated, async (req, res) => {
   console.log("route :/offer/publish");
+  console.log(req.files);
   try {
     // Creation d'une nouvelle offre dans la bdd
     const newOffer = new Offer({
@@ -36,11 +37,8 @@ router.post("/offer/publish", isAuthenticated, async (req, res) => {
         { COULEUR: req.fields.color },
         { EMPLACEMENT: req.fields.city },
       ],
-      // product_image: req.img.secure_url,
       owner: req.user,
     });
-
-    console.log(req.files);
 
     let imgToUpload = req.files.picture.path;
     const imgUploaded = await cloudinary.uploader.upload(imgToUpload, {

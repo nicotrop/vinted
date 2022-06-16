@@ -1,116 +1,119 @@
-//Import des packages
+//Import dependencies
 const express = require("express");
 const router = express.Router();
-
 const SHA256 = require("crypto-js/sha256");
 const encBase64 = require("crypto-js/enc-base64");
 const uid2 = require("uid2");
+const cloudinary = require("cloudinary").v2;
 
-//Import des models
+//Import models
 const Userlogins = require("../models/Userlogins");
 
-//Creation de fonctions
+//Import functions
+const validatePassword = require("../tools/validatePassword");
+const verifyEmail = require("../tools/verifyEmail");
 
-//Verify email
-const verifyEmail = (email) => {
-  let newMail = email.toLowerCase();
-  if (
-    newMail.includes("@") &&
-    newMail.split("@").length <= 2 &&
-    newMail.split("@").length >= 0 &&
-    newMail.split("@")[1].includes(".")
-  ) {
-    return true;
-  } else {
-    return false;
-  }
-};
-
-// verify password
-const validatePassword = (p) => {
-  const errors = [];
-  if (p.length < 8) {
-    errors.push("Your password must be at least 8 characters");
-  }
-  if (p.length > 32) {
-    errors.push("Your password must be at max 32 characters");
-  }
-  if (p.search(/[a-z]/) < 0) {
-    errors.push("Your password must contain at least one lower case letter.");
-  }
-  if (p.search(/[A-Z]/) < 0) {
-    errors.push("Your password must contain at least one upper case letter.");
-  }
-  if (p.search(/[0-9]/) < 0) {
-    errors.push("Your password must contain at least one digit.");
-  }
-  if (p.search(/[!@#\$%\^&\*_]/) < 0) {
-    errors.push(
-      "Your password must contain at least special char from -[ ! @ # $ % ^ & * _ ]"
-    );
-  }
-  if (errors.length > 0) {
-    console.log(errors.join("\n"));
-    return false;
-  }
-  return true;
-};
+//Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUD_name,
+  api_key: process.env.API_key,
+  api_secret: process.env.API_secret,
+});
 
 // Signup
 router.post("/user/signup", async (req, res) => {
-  console.log("routes :/signup");
-
-  try {
-    if (
-      validatePassword(req.fields.password) &&
-      verifyEmail(req.fields.email) &&
-      req.fields.username.length > 1
-    ) {
-      //Verifie si l'email existe deja dans la BDD
-      const emailExist = await Userlogins.findOne({ email: req.fields.email });
-
-      //Condition si l'email existe deja dans la bdd
-      if (emailExist === null || req.fields.username) {
-        //Creation du salt, du hash, et du token
-        const salt = uid2(16);
-        const password = req.fields.password;
-        const hash = SHA256(salt + password).toString(encBase64); //Creation du hash (password + salt) et convertissement en string
-        const token = uid2(16);
-
-        //Creation du compte de l'utilisateur dans la bdd
-        const newUser = new Userlogins({
-          username: req.fields.username,
-          email: req.fields.email,
-          account: {
-            username: req.fields.username,
-            avatar: Object, // nous verrons plus tard comment uploader une image
-          },
-          newsletter: req.fields.newsletter,
-          token: token,
-          hash: hash,
-          salt: salt,
-        });
-        await newUser.save();
-        res.status(200).json({
-          _id: newUser._id,
-          token: newUser.token,
-          account: {
-            username: newUser.account.username,
-          },
-        });
+  //Check all inputs have been submitted
+  if (
+    req.fields.password &&
+    req.fields.email &&
+    req.fields.username &&
+    req.fields.newsletter
+  ) {
+    //Descructure variables
+    const { password, email, username, newsletter } = req.fields;
+    console.log(validatePassword(password));
+    try {
+      //Check password input
+      if (validatePassword(password) === true) {
+        //Check email input
+        if (verifyEmail(email)) {
+          //Lookup if email exists in database
+          const emailExist = await Userlogins.findOne({
+            email: email,
+          });
+          console.log(emailExist);
+          //Condition si l'email existe deja dans la bdd
+          if (emailExist === null) {
+            //Lookup if username exists in database
+            const usernameExist = await Userlogins.findOne({
+              account: {
+                username: username,
+              },
+            });
+            console.log("username", usernameExist);
+            if (usernameExist === null) {
+              //Creation du salt, du hash, et du token
+              const salt = uid2(16);
+              const hash = SHA256(salt + password).toString(encBase64); //Create hash (password + salt) and convert to a string
+              const token = uid2(16);
+              //Create new user
+              const newUser = new Userlogins({
+                username: username,
+                email: email,
+                account: {
+                  username: username,
+                  avatar: Object,
+                },
+                newsletter: newsletter,
+                token: token,
+                hash: hash,
+                salt: salt,
+              });
+              //Adding profile img
+              if (req.files.picture?.path) {
+                let imgToUpload = req.files.picture.path;
+                const imgUploaded = await cloudinary.uploader.upload(
+                  imgToUpload,
+                  {
+                    folder: "/vinted/users/",
+                    public_id: newUser.account.username,
+                  }
+                );
+                newUser.account.avatar = imgUploaded.secure_url;
+              } else {
+                newUser.account.avatar =
+                  "https://res.cloudinary.com/dygjptmlc/image/upload/v1655380024/default_avatar_vmdgai.png";
+              }
+              await newUser.save();
+              res.status(200).json(newUser);
+            } else {
+              res.status(400).json({
+                error: "Username is taken",
+              });
+            }
+          } else {
+            res.status(400).json({
+              error: "Email already exists",
+            });
+          }
+        } else {
+          res.status(400).json({
+            error: "Enter a valid email",
+          });
+        }
       } else {
         res.status(400).json({
-          error: "Bad request!",
+          error: validatePassword(password),
         });
       }
-    } else {
+    } catch (error) {
       res.status(400).json({
-        error: "Bad request!",
+        error: error.message,
       });
     }
-  } catch (error) {
+  } else {
     res.status(400).json({
-      error: error.message,
+      error: "Please fill out all required fields.",
     });
   }
 });
