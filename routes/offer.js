@@ -139,8 +139,12 @@ router.get("/offer", async (req, res) => {
     // Pagination
     if (req.query.page) {
       page = req.query.page - 1;
-      limit = 3;
-      skip = 3 * page;
+      if (req.query.limit && req.query.limit > 0) {
+        limit = req.query.limit;
+        skip = limit * page;
+      } else {
+        skip = limit * page;
+      }
     }
     // Price max
     if (req.query.priceMax) {
@@ -169,7 +173,8 @@ router.get("/offer", async (req, res) => {
     })
       .sort({ product_price: priceSort })
       .limit(limit)
-      .skip(skip);
+      .skip(skip)
+      .populate("owner");
 
     res.status(200).json(pageData);
   } catch (error) {
